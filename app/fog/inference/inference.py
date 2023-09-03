@@ -45,7 +45,6 @@ class MyInference(CsvLogging, Producer):
 
     def _process(self, data):
         results = self.model(data)
-        results.save()
         return results.render()[0]
 
     async def process(self, data):
