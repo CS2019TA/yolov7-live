@@ -1,0 +1,15 @@
+/venv
+/testing
+/fogverse.egg-info
+/yolov5
+
+**/logs
+**/__pycache__
+
+*.csv
+
+**.DS_Store
+.env
+**/dist
+/fogverse
+**/fogverse.egg-info
