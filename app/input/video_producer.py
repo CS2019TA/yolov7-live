@@ -4,7 +4,7 @@ import cv2
 
 from dotenv import load_dotenv
 from pathlib import Path
-from fogverse import Producer
+from fogverse import Producer, OpenCVConsumer, ConsumerStorage
 from fogverse.logging import CsvLogging
 from fogverse.util import compress_encoding, get_cam_id, get_timestamp_str, numpy_to_bytes
 
@@ -12,12 +12,19 @@ load_dotenv()
 
 
 SIZE = (640, 480)
-DIR = Path(os.environ['IMAGE_PATH'])
-VID = Path(os.environ['VIDEO_PATH'])
+# DIR = Path(os.environ['IMAGE_PATH'])
+# VID = Path(os.environ['VIDEO_PATH'])
+
+
+class MyVideoConsumer(OpenCVConsumer, ConsumerStorage):
+    def __init__(self, keep_messages=False):
+        OpenCVConsumer.__init__(self)
+        ConsumerStorage.__init__(self, keep_messages=keep_messages)
 
 
 class MyFrameProducer(CsvLogging, Producer):
-    def __init__(self, compress, compress_name, loop=None):
+    def __init__(self, consumer, compress, compress_name, loop=None):
+        self.consumer = consumer
         self.cam_id = get_cam_id()
         self.producer_topic = 'input'
         self.frame_idx = 1
@@ -28,22 +35,23 @@ class MyFrameProducer(CsvLogging, Producer):
 
 # ===================================================================================
 
-    def _receive(self):
-        consumer = cv2.VideoCapture(str(VID))
-        while consumer.isOpened():
-            ret, frame = consumer.read()
-            if not ret:
-                print("Can't receive frame (stream end?). Exiting ...")
-                break
+    # def _receive(self):
+    #     consumer = cv2.VideoCapture(str(VID))
+    #     while consumer.isOpened():
+    #         ret, frame = consumer.read()
+    #         if not ret:
+    #             print("Can't receive frame (stream end?). Exiting ...")
+    #             break
 
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            frame = cv2.resize(frame, SIZE)
-            return frame
+    #         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    #         frame = cv2.resize(frame, SIZE)
+    #         return frame
 
-        consumer.release()
+    #     consumer.release()
 
     async def receive(self):
-        return await self._loop.run_in_executor(None, self._receive)
+        return await self.consumer.get()
+        # return await self._loop.run_in_executor(None, self._receive)
 
 # ===================================================================================
 
@@ -74,15 +82,15 @@ class MyFrameProducer(CsvLogging, Producer):
 
 
 class MyFrameProducerSc2_4(MyFrameProducer):
-    def __init__(self, compress, compress_name, loop=None):
+    def __init__(self, consumer, compress, compress_name, loop=None):
         self.producer_servers = os.environ['LOCAL_KAFKA']
-        super().__init__(compress, compress_name, loop)
+        super().__init__(consumer, compress, compress_name, loop)
 
 
 class MyFrameProducerSc3(MyFrameProducer):
-    def __init__(self, compress, compress_name, loop=None):
+    def __init__(self, consumer, compress, compress_name, loop=None):
         self.producer_servers = os.getenv('CLOUD_KAFKA')
-        super().__init__(compress, compress_name, loop)
+        super().__init__(consumer, compress, compress_name, loop)
 
 # ===================================================================================
 
@@ -113,10 +121,12 @@ async def main():
     compress = processes[compress_name]
     scenario = int(os.getenv('SCENARIO', 4))
 
+    _Consumer = MyVideoConsumer
     _Producer = scenarios[scenario]
 
-    producer = _Producer(compress, compress_name)
-    tasks = [producer.run()]
+    consumer = _Consumer()
+    producer = _Producer(consumer, compress, compress_name)
+    tasks = [consumer.run(), producer.run()]
     try:
         await asyncio.gather(*tasks)
     except:
