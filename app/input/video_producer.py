@@ -3,17 +3,11 @@ import os
 import cv2
 
 from dotenv import load_dotenv
-from pathlib import Path
 from fogverse import Producer, OpenCVConsumer, ConsumerStorage
 from fogverse.logging import CsvLogging
 from fogverse.util import compress_encoding, get_cam_id, get_timestamp_str, numpy_to_bytes
 
 load_dotenv()
-
-
-SIZE = (640, 480)
-# DIR = Path(os.environ['IMAGE_PATH'])
-# VID = Path(os.environ['VIDEO_PATH'])
 
 
 class MyVideoConsumer(OpenCVConsumer, ConsumerStorage):
@@ -35,23 +29,8 @@ class MyFrameProducer(CsvLogging, Producer):
 
 # ===================================================================================
 
-    # def _receive(self):
-    #     consumer = cv2.VideoCapture(str(VID))
-    #     while consumer.isOpened():
-    #         ret, frame = consumer.read()
-    #         if not ret:
-    #             print("Can't receive frame (stream end?). Exiting ...")
-    #             break
-
-    #         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    #         frame = cv2.resize(frame, SIZE)
-    #         return frame
-
-    #     consumer.release()
-
     async def receive(self):
         return await self.consumer.get()
-        # return await self._loop.run_in_executor(None, self._receive)
 
 # ===================================================================================
 
