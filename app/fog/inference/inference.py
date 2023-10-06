@@ -1,5 +1,6 @@
 import os
 import asyncio
+import cv2
 import torch
 
 import numpy as np
@@ -83,6 +84,14 @@ class MyJetsonSc4(MyInference):
         self.producer_topic = 'result'
         self.producer_servers = os.environ['LOCAL_KAFKA']
         super().__init__(*args, **kwargs)
+
+    def decode(self, data):
+        data = super().decode(data)
+        if len(data.shape) == 1:
+            # in case the data is encoded with cv2.imencode
+            # case for compressed image
+            return cv2.imdecode(data, cv2.IMREAD_COLOR)
+        return data
 
 
 scenarios = {
